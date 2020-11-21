@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+# Copyright 2020 Coque Couto <coque.couto@gmail.com>
+#
+# Distribute under the terms of the GPLv3 or later (see LICENSE).
+
+use() {
+    cat <<-EOF >&2
+Use: $1 <quality>
+
+Downloads videos from Wistia using the HTML code you can obtain by
+right-clicking on the video and selecting the "Copy link and thumbnail"
+option.
+
+Copy the result to the standard input of this script.
+
+Terminate the program by pressing Ctrl+D or Ctrl+C.
+
+Example:
+
+   $1 720p
+EOF
+    exit 1
+}
+
+error() {
+    echo $1 >&2
+}
+
+fatal() {
+    error "$1"
+    exit 1
+}
+
+requires() {
+    (which "$1" &> /dev/null) || \
+        fatal "This program requires '"$1"' installed on this system."
+}
+
+PROGNAME=$(basename "$0")
+
+[ $# -ne 1 ] && use "$PROGNAME"
+    
+QUALITY="$1"
+
+requires jq
+requires curl
+
+while read LINK_HTML; do
+    VID_ID=$(echo "$LINK_HTML" | sed -e 's/.*wvideo=//' -e 's/">.*//')
+
+    if [ -z "$VID_ID" ]; then
+        error "Video ID not found in input."
+    else
+        echo "Determining URL for video ${VID_ID}..."
+
+        HTML_FILE=$(mktemp "${PROGNAME}.XXXXXX")
+        curl -s https://fast.wistia.net/embed/iframe/"$VID_ID" -o "$HTML_FILE" &> /dev/null
+
+        if [ -s "$HTML_FILE" ]; then
+            if grep -q '"error":true' "$HTML_FILE"; then
+                error "Video id "$VID_ID" not found in Wistia\'s servers."
+            else
+                JSON=$(cat $HTML_FILE \
+                           | grep -o -E 'iframeInit\(.*, \{\})' \
+                           | sed -E 's/iframeInit\((.*)\,\ \{\}\)/\1/')
+
+                URL_VID=$(echo "$JSON" \
+                              | jq -r '.assets[] | select(.container=="mp4") | select(.display_name=="'$QUALITY'") | .url')
+
+                if [ -z "$URL_VID" ]; then
+                    error "Can't find video id "$VID_ID" in "$QUALITY" quality. Try any of these instead:"
+                    echo "$JSON" \
+                        | jq -r '.assets[] | select(.container=="mp4") | .display_name' >&2
+                else
+                    for i in  $URL_VID; do
+                        echo "Downloading $i..."
+                        curl -O -C - "$i"
+                    done
+                fi
+            fi
+        else
+            error "Something went wrong downloading https://fast.wistia.net/embed/iframe/$VID_ID"
+        fi
+        rm -f "$HTML_FILE"
+    fi
+done
