@@ -1,0 +1,35 @@
+= README
+:tags: Publish
+:author: Coque Couto
+:email: coque.couto@gmail.com
+:date: november 2020
+:revdate: 20201121
+:source-highlighter: rouge
+:toc:
+:toclevels: 3
+:numbered:
+
+== Purpose
+
+This script eases downloading videos from Wistia. Simply run the
+script in the folder you want to leave the videos, specifying the
+quality you want, and copy into the terminal where it's running the
+HTML code you obtain by right clicking the video and selecting the
+_Copy link and thumbnail_ option.
+
+The script will deduce the video URL from the JSON in Witsia's servers
+and will download it in the current directory.
+
+== Installation
+
+Simply clone the repo and make a link to the script in any folder
+included in your PATH. For example:
+
+----
+$ git clone https://github.com/coquec/wistiadl.git
+$ ln -s ~/wistiadl/wistiadl ~/bin
+----
+
+The script needs https://stedolan.github.io/jq/[jq] and
+https://curl.se/[curl] installed in your system. Please, refer to the
+documentation of these tools for further information.
